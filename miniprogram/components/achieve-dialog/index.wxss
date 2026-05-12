@@ -1,0 +1,22 @@
+﻿.mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 33, 80, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 21;
+}
+.dialog {
+  width: 620rpx;
+  background: linear-gradient(180deg, #fdf2ff 0%, #ffffff 70%);
+  border-radius: 28rpx;
+  padding: 36rpx;
+}
+.title { text-align: center; font-size: 34rpx; color: #2b3d74; font-weight: 700; }
+.sub { text-align: center; margin-top: 12rpx; color: #6f7ea8; font-size: 24rpx; }
+.reward-row { margin: 26rpx 0; display: flex; justify-content: center; gap: 16rpx; }
+.reward { width: 180rpx; background: #f5f9ff; border-radius: 16rpx; padding: 16rpx; text-align: center; }
+.icon { width: 88rpx; height: 88rpx; border-radius: 16rpx; }
+.name { margin-top: 10rpx; font-size: 22rpx; color: #2f477f; }
+.btn { background: linear-gradient(90deg, #4f8dff, #7e6fff); color: #fff; border-radius: 999rpx; font-size: 28rpx; }

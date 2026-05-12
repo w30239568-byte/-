@@ -2,24 +2,23 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.activitydemo.mapper.ActivityUserJoinMapper">
 
-    <!-- 列表查询result -->
     <select id="list" resultType="com.example.activitydemo.vo.ActivityUserJoinListedVo">
         select lauj.id,
-        lauj.activity_id,
-        lauj.status,
-        lauj.create_user_id,
-        lauj.update_user_id,
-        lauj.create_time,
-        lauj.update_time,
-        lauj.update_user_id as userId,
-        usee.nickname,
-        usee.username,
-        usee.avatar,
-        usee.mobile,
-        acti.name as activityName
-
-        from la_activity_user_join lauj join la_user usee on lauj.create_user_id = usee.id join la_activity acti on
-        lauj.activity_id = acti.id
+               lauj.activity_id,
+               lauj.status,
+               lauj.create_user_id,
+               lauj.update_user_id,
+               lauj.create_time,
+               lauj.update_time,
+               lauj.user_id as userId,
+               usee.nickname,
+               usee.username,
+               usee.avatar,
+               usee.mobile,
+               acti.name as activityName
+        from la_activity_user_join lauj
+                 join la_user usee on lauj.user_id = usee.id
+                 join la_activity acti on lauj.activity_id = acti.id
         <where>
             and lauj.is_delete = 0
             <if test="param.activityId != null">
@@ -38,16 +37,14 @@
         order by lauj.id desc
     </select>
 
-    <select id="getUserJoinActivity" resultType="import com.example.activitydemo.vo.ActivityUserJoinListedVo">
-        select joins.create_user_id, joins.activity_id
+    <select id="getUserJoinActivity" resultType="com.example.activitydemo.vo.ActivityUserJoinListedVo">
+        select joins.user_id as userId, joins.activity_id
         from la_activity_user_join joins
                  join la_activity activitys on joins.activity_id = activitys.id
         where now() between activitys.start_time and activitys.end_time
           and joins.status = 0
           and activitys.is_delete = 0
           and joins.is_delete = 0
-
     </select>
-
 
 </mapper>

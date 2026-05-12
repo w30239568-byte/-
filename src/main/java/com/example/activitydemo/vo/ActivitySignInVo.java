@@ -2,41 +2,38 @@ package com.example.activitydemo.vo;
 
 import lombok.Data;
 
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+
 @Data
 public class ActivitySignInVo {
 
+    @NotNull(message = "userId不能为空")
+    @Min(value = 1, message = "userId必须大于0")
+    private Long userId;
 
-    /**
-     * 活动id
-     */
+    @NotNull(message = "activityId不能为空")
+    @Min(value = 1, message = "activityId必须大于0")
     private Long activityId;
 
-    /**
-     * 任务id
-     */
+    @NotNull(message = "taskId不能为空")
+    @Min(value = 1, message = "taskId必须大于0")
     private Long taskId;
 
-    /**
-     * 心情状态,1要加油，2一般般，3棒棒哒
-     */
+    @Min(value = 1, message = "moodStatus最小为1")
+    @Max(value = 3, message = "moodStatus最大为3")
     private Integer moodStatus;
 
-    /**
-     * 打卡资源
-     */
+    @Size(max = 2000, message = "resource长度不能超过2000")
     private String resource;
 
-    /**
-     * 打卡内容
-     */
+    @Size(max = 1000, message = "content长度不能超过1000")
     private String content;
 
-    /**
-     * AI专家点评
-     */
+    @Size(max = 1000, message = "aiComment长度不能超过1000")
     private String aiComment;
 
     private Integer isOpen;
-
-
 }

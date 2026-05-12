@@ -2,6 +2,10 @@ package com.example.activitydemo.validate;
 
 import lombok.Data;
 
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+
 /**
  * 奖品
  */
@@ -10,12 +14,15 @@ public class ActivityAwardCreateValidate {
 
 
     /*** 名称 ***/
+    @NotBlank(message = "奖品名称不能为空")
+    @Size(max = 64, message = "奖品名称长度不能超过64")
     private String name;
 
     /*** 图片 ***/
     private String icon;
 
     /*** 类型 ***/
+    @NotNull(message = "type不能为空")
     private Integer type;
 
     /**
@@ -43,6 +50,7 @@ public class ActivityAwardCreateValidate {
     private Integer limitNum;
 
     /*** 状态 ***/
+    @NotNull(message = "status不能为空")
     private Integer status;
 
     /*** 创建人ID ***/

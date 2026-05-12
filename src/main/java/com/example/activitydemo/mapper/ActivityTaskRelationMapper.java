@@ -13,11 +13,6 @@ import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
-/**
- * 活动与任务关联Mapper
- *
- * @author fei
- */
 @Mapper
 public interface ActivityTaskRelationMapper extends BaseMapper<ActivityTaskRelation> {
 
@@ -36,4 +31,6 @@ public interface ActivityTaskRelationMapper extends BaseMapper<ActivityTaskRelat
 
     ActivityTaskRelation getNotCompleteTask(@Param("activityId") Long activityId, @Param("userId") Long userId);
 
+    @Select("select * from la_activity_task_relation where activity_id = #{activityId} and is_delete = 0 order by sorts asc")
+    List<ActivityTaskRelation> getByActivityId(@Param("activityId") Long activityId);
 }

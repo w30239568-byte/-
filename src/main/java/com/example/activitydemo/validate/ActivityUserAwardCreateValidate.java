@@ -2,6 +2,9 @@ package com.example.activitydemo.validate;
 
 import lombok.Data;
 
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
+
 /**
  * 用户奖品
  */
@@ -10,6 +13,8 @@ public class ActivityUserAwardCreateValidate {
 
 
     /*** 奖品id ***/
+    @NotNull(message = "activityAwardId不能为空")
+    @Min(value = 1, message = "activityAwardId必须大于0")
     private Long activityAwardId;
 
     /*** 名称 ***/

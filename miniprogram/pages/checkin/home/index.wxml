@@ -1,0 +1,28 @@
+﻿<view class="page">
+  <view class="hero">
+    <view class="hero-title">打卡攻略</view>
+    <view class="steps">
+      <view class="step">Step01<br/>报名活动</view>
+      <view class="step">Step02<br/>完成任务打卡</view>
+      <view class="step">Step03<br/>获得奖励</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="name">{{detail.name || '寒假打卡计划'}}</view>
+    <view class="remark">{{detail.remark || '每日打卡，累计完成目标可领奖'}}</view>
+    <view class="meta">活动时间：{{detail.startTime || '-'}} ~ {{detail.endTime || '-'}}</view>
+  </view>
+
+  <view class="card reward">
+    <view class="name">奖励预览</view>
+    <view class="badges">
+      <view class="badge v">V</view>
+      <view class="badge h">❤</view>
+    </view>
+    <view class="tip">连续坚持并完成任务可领取奖品</view>
+  </view>
+
+  <button wx:if="{{canSignUp}}" class="btn signup" bindtap="signUp">我要报名</button>
+  <button wx:else class="btn calendar" bindtap="goCalendar">进入日历打卡</button>
+</view>

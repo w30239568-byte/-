@@ -1,0 +1,25 @@
+﻿<view class="page">
+  <view class="calendar-card">
+    <view class="head">
+      <view class="title">日历打卡</view>
+      <view class="state">连续{{signMsg.continuousNums || 0}}天，累计{{signMsg.signNums || 0}}天</view>
+    </view>
+    <view class="month">{{signMsg.startTime || ''}}</view>
+    <view class="week-row">
+      <view wx:for="{{['一','二','三','四','五','六','日']}}" wx:key="index">{{item}}</view>
+    </view>
+    <view class="day-grid">
+      <view wx:for="{{31}}" wx:key="index" class="day">{{index + 1}}</view>
+    </view>
+  </view>
+
+  <view class="task-card">
+    <view class="task-title">待办任务</view>
+    <view wx:if="{{taskList.length}}" class="task-name">{{taskList[0].name}}</view>
+    <view wx:else class="task-name">暂无任务</view>
+    <button class="btn" bindtap="openSignDialog">立即打卡</button>
+  </view>
+
+  <checkin-dialog show="{{showSignDialog}}" bind:close="closeSignDialog" bind:submit="submitSign"></checkin-dialog>
+  <achieve-dialog show="{{showAchieveDialog}}" rewards="{{signMsg.priceList || []}}" bind:close="closeAchieveDialog"></achieve-dialog>
+</view>

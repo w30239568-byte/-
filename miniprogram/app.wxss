@@ -1,0 +1,5 @@
+﻿page {
+  background: linear-gradient(180deg, #eaf3ff 0%, #f8fbff 100%);
+  color: #1f2f5f;
+  font-family: "PingFang SC", "Helvetica Neue", sans-serif;
+}

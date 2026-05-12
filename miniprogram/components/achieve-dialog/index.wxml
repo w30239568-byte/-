@@ -1,0 +1,13 @@
+﻿<view wx:if="{{show}}" class="mask">
+  <view class="dialog">
+    <view class="title">恭喜您获得奖励！</view>
+    <view class="sub">您是第 {{rewards.length}} 位完成目标的用户</view>
+    <view class="reward-row">
+      <view class="reward" wx:for="{{rewards}}" wx:key="index">
+        <image class="icon" src="{{item.prizeIcon}}" mode="aspectFill"></image>
+        <view class="name">{{item.prizeName}}</view>
+      </view>
+    </view>
+    <button class="btn" bindtap="close">分享好友</button>
+  </view>
+</view>

@@ -2,8 +2,9 @@ package com.example.activitydemo.basecommon;
 
 import lombok.Data;
 
-import javax.validation.constraints.DecimalMax;
-import javax.validation.constraints.DecimalMin;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 
 @Data
@@ -12,12 +13,14 @@ public class PageValidate implements Serializable {
     private static final long serialVersionUID = 1L;
 
     // 当前分页
-    @DecimalMin(value = "1", message = "pageNo参数必须大于0的数字")
-    public Integer pageNo = 1;
+    @NotNull(message = "pageNo不能为空")
+    @Min(value = 1, message = "pageNo最小为1")
+    private Integer pageNo = 1;
 
     // 每页条数
-    @DecimalMin(value = "1", message = "pageSize参数必须是大于0的数字")
-    @DecimalMax(value = "100", message = "pageSize参数必须是小于60的数字")
+    @NotNull(message = "pageSize不能为空")
+    @Min(value = 1, message = "pageSize最小为1")
+    @Max(value = 100, message = "pageSize最大为100")
     private Integer pageSize = 20;
 
 }

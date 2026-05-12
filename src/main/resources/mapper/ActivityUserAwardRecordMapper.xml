@@ -2,24 +2,22 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.activitydemo.mapper.ActivityUserAwardRecordMapper">
 
-    <!-- 列表查询result -->
     <select id="list" resultType="com.example.activitydemo.vo.ActivityUserAwardRecordListedVo">
-        select
-        lauar.id,
-        lauar.user_id,
-        lauar.award_id,
-        lauar.type,
-        lauar.award,
-        lauar.create_user_id,
-        lauar.update_user_id,
-        lauar.create_time,
-        lauar.update_time,
-        usess.nickname as userName,
-        awards.name as awardName,
-        awards.equity_name
+        select lauar.id,
+               lauar.user_id,
+               lauar.award_id,
+               lauar.type,
+               lauar.award,
+               lauar.create_user_id,
+               lauar.update_user_id,
+               lauar.create_time,
+               lauar.update_time,
+               usess.nickname as userName,
+               awards.name as awardName,
+               awards.equity_name
         from la_activity_user_award_record lauar
-            join la_user usess on lauar.user_id = usess.id
-            join la_activity_award awards on lauar.award_id = awards.id
+                 join la_user usess on lauar.user_id = usess.id
+                 join la_activity_award awards on lauar.award_id = awards.id
         <where>
             and lauar.is_delete = 0
             <if test="param.userId != null">
@@ -44,16 +42,16 @@
         order by lauar.id desc
     </select>
 
-    <select id="userGetList" resultType="import com.example.activitydemo.vo.ActivityUserAwardVo">
-        select
-        lauj.update_time,
-        lauj.update_user_id as userId,
-        use.id as userId,
-        use.nickname,
-        use.username as userAccount,
-        use.avatar,
-        use.mobile
-        from la_activity_user_award_record lauj join la_user use on lauj.user_id = use.id
+    <select id="userGetList" resultType="com.example.activitydemo.vo.ActivityUserAwardVo">
+        select lauj.update_time,
+               lauj.update_user_id as userId,
+               u.id as userId,
+               u.nickname,
+               u.username as userAccount,
+               u.avatar,
+               u.mobile
+        from la_activity_user_award_record lauj
+                 join la_user u on lauj.user_id = u.id
         <where>
             and lauj.is_delete = 0
             <if test="param.awardId != null">

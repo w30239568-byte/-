@@ -16,7 +16,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+
 @Slf4j
+@Validated
 @RestController
 @RequestMapping("api/activity")
 public class ActivityController {
@@ -27,8 +31,8 @@ public class ActivityController {
 
 
     @RequestMapping("/list")
-    public AjaxResult<PageResult<ActivityListedVo>> list(@RequestParam(required = false, defaultValue = "1") Integer pageNo,
-                                                         @RequestParam(required = false, defaultValue = "10") Integer pageSize,
+    public AjaxResult<PageResult<ActivityListedVo>> list(@RequestParam(required = false, defaultValue = "1") @Min(value = 1, message = "pageNo最小为1") Integer pageNo,
+                                                         @RequestParam(required = false, defaultValue = "10") @Min(value = 1, message = "pageSize最小为1") @Max(value = 100, message = "pageSize最大为100") Integer pageSize,
                                                          @RequestParam(required = false) Integer status,
                                                          @RequestParam(required = false) String name,
                                                          @RequestParam(required = false) Integer createType) {
@@ -45,13 +49,13 @@ public class ActivityController {
     }
 
     @GetMapping("/detail")
-    public AjaxResult<ActivityDetailVo> detail(@RequestParam Long id) {
+    public AjaxResult<ActivityDetailVo> detail(@RequestParam @Min(value = 1, message = "id必须大于0") Long id) {
         ActivityDetailVo detail = activityService.detail(id);
         return AjaxResult.success(detail);
     }
 
     @GetMapping("/del")
-    public AjaxResult<Object> del(@RequestParam Long id) {
+    public AjaxResult<Object> del(@RequestParam @Min(value = 1, message = "id必须大于0") Long id) {
         Boolean del = activityService.del(id);
         return !del ? AjaxResult.failed("当前活动已被参与，禁止删除！") : AjaxResult.success();
     }

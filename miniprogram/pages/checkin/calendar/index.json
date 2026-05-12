@@ -1,0 +1,7 @@
+﻿{
+  "navigationBarTitleText": "日历打卡",
+  "usingComponents": {
+    "checkin-dialog": "/components/checkin-dialog/index",
+    "achieve-dialog": "/components/achieve-dialog/index"
+  }
+}

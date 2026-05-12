@@ -1,0 +1,14 @@
+﻿{
+  "pages": [
+    "pages/checkin/home/index",
+    "pages/checkin/calendar/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "寒假打卡",
+    "navigationBarBackgroundColor": "#f6f8ff",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f6f8ff"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

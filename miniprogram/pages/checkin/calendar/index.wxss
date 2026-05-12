@@ -1,0 +1,17 @@
+﻿.page { padding: 28rpx; }
+.calendar-card {
+  background: linear-gradient(180deg, #edf4ff, #ffffff);
+  border-radius: 26rpx;
+  padding: 24rpx;
+}
+.head { display: flex; justify-content: space-between; align-items: center; }
+.title { font-size: 32rpx; font-weight: 700; color: #243a74; }
+.state { font-size: 22rpx; color: #6a7ca8; }
+.month { margin-top: 14rpx; color: #35518f; font-size: 24rpx; }
+.week-row { display: grid; grid-template-columns: repeat(7, 1fr); margin-top: 12rpx; color: #7f8fb5; font-size: 22rpx; text-align: center; }
+.day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10rpx; margin-top: 14rpx; }
+.day { height: 52rpx; border-radius: 12rpx; background: #f6f9ff; text-align: center; line-height: 52rpx; color: #38508a; font-size: 22rpx; }
+.task-card { margin-top: 20rpx; background: #fff; border-radius: 22rpx; padding: 24rpx; }
+.task-title { color: #2a4179; font-size: 30rpx; font-weight: 700; }
+.task-name { margin-top: 10rpx; color: #6f80a9; font-size: 24rpx; }
+.btn { margin-top: 16rpx; border-radius: 999rpx; background: linear-gradient(90deg,#2f8dff,#6d7bff); color: #fff; }

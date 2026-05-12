@@ -12,20 +12,16 @@ import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
-/**
- * 用户活动报名Mapper
- *
- * @author fei
- */
 @Mapper
 public interface ActivityUserJoinMapper extends BaseMapper<ActivityUserJoin> {
 
     IPage<ActivityUserJoinListedVo> list(Page<ActivityUserJoin> page, @Param("param") ActivityUserJoinSearchValidate activityUserJoinSearchValidate);
 
-    @Select("select * from la_activity_user_join where activity_id =#{activityId}  and is_delete = 0 limit 1")
+    @Select("select * from la_activity_user_join where activity_id =#{activityId} and is_delete = 0 limit 1")
     ActivityUserJoin getByActivityId(@Param("activityId") Long activityId);
 
+    @Select("select * from la_activity_user_join where activity_id =#{activityId} and user_id = #{userId} and is_delete = 0 limit 1")
+    ActivityUserJoin getByUserIdAndActivityId(@Param("activityId") Long activityId, @Param("userId") Long userId);
+
     List<ActivityUserJoinListedVo> getUserJoinActivity();
-
-
 }

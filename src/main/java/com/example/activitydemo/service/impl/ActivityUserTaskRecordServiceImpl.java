@@ -2,13 +2,29 @@ package com.example.activitydemo.service.impl;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import com.baomidou.mybatisplus.core.incrementer.DefaultIdentifierGenerator;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.activitydemo.basecommon.PageResult;
 import com.example.activitydemo.basecommon.PageValidate;
-import com.example.activitydemo.domain.*;
-import com.example.activitydemo.mapper.*;
+import com.example.activitydemo.domain.Activity;
+import com.example.activitydemo.domain.ActivityAward;
+import com.example.activitydemo.domain.ActivityAwardRule;
+import com.example.activitydemo.domain.ActivityTaskItem;
+import com.example.activitydemo.domain.ActivityUserAward;
+import com.example.activitydemo.domain.ActivityUserAwardRecord;
+import com.example.activitydemo.domain.ActivityUserJoin;
+import com.example.activitydemo.domain.ActivityUserTaskRecord;
+import com.example.activitydemo.mapper.ActivityAwardMapper;
+import com.example.activitydemo.mapper.ActivityAwardRuleMapper;
+import com.example.activitydemo.mapper.ActivityMapper;
+import com.example.activitydemo.mapper.ActivityTaskItemMapper;
+import com.example.activitydemo.mapper.ActivityTaskRelationMapper;
+import com.example.activitydemo.mapper.ActivityUserAwardMapper;
+import com.example.activitydemo.mapper.ActivityUserAwardRecordMapper;
+import com.example.activitydemo.mapper.ActivityUserJoinMapper;
+import com.example.activitydemo.mapper.ActivityUserTaskRecordMapper;
 import com.example.activitydemo.service.IActivityUserTaskRecordService;
 import com.example.activitydemo.validate.ActivityUserTaskRecordCreateValidate;
 import com.example.activitydemo.validate.ActivityUserTaskRecordSearchValidate;
@@ -17,31 +33,35 @@ import com.example.activitydemo.vo.ActivityUserPriceVo;
 import com.example.activitydemo.vo.ActivityUserTaskRecordListedVo;
 import com.example.activitydemo.vo.SignMsgVo;
 import com.example.activitydemo.vo.TaskDataVo;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.beans.BeanUtils;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
-import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 用户任务记录实现类
- *
- * @author fei
- */
-@Slf4j
 @Service
 public class ActivityUserTaskRecordServiceImpl extends ServiceImpl<ActivityUserTaskRecordMapper, ActivityUserTaskRecord> implements IActivityUserTaskRecordService {
-    public static SimpleDateFormat format1 = new SimpleDateFormat(
-            "yyyyMMdd HH:mm:ss");
+
+    private static final String USER_SIGN_KEY = "activity:user:sign:";
+    private static final String AWARD_STOCK_KEY = "activity:award:stock:";
+    private static final String SIGN_IDEMPOTENT_KEY = "idempotent:signin:";
+    private static final long SIGN_IDEMPOTENT_EXPIRE_SECONDS = 120L;
+
     @Resource
     private ActivityUserTaskRecordMapper activityUserTaskRecordMapper;
     @Resource
@@ -60,242 +80,314 @@ public class ActivityUserTaskRecordServiceImpl extends ServiceImpl<ActivityUserT
     private ActivityUserJoinMapper activityUserJoinMapper;
     @Resource
     private ActivityTaskRelationMapper activityTaskRelationMapper;
+    @Resource
+    private DefaultIdentifierGenerator defaultIdentifierGenerator;
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
 
+    private final DefaultRedisScript<Long> awardStockScript;
 
-    @Override
-    public SignMsgVo getSignMsg(Long activityId, long userId) {
-        SignMsgVo signMsgVo = new SignMsgVo();
-        getUserActivityMsg(signMsgVo, userId, activityId);
-        //查询用户是否已完成
-        ActivityUserJoin byUserIdAndActivityId = activityUserJoinMapper.getByUserIdAndActivityId(activityId, userId);
-        if (byUserIdAndActivityId.getStatus() == 1) {
-            //活动已完成，填充中奖信息
-            List<Long> allAwardByUserId = activityUserAwardRecordMapper.getAllAwardByUserId(userId, activityId);
-            List<ActivityUserPriceVo> priceList = new ArrayList<>();
-            for (Long activityAwardId : allAwardByUserId) {
-                ActivityUserPriceVo tmp = new ActivityUserPriceVo();
-                ActivityAward activityAward = activityAwardMapper.selectById(activityAwardId);
-                if (activityAward.getType().equals(1)) {
-                    //勋章
-                    signMsgVo.setRankNum(activityAward.getUseNum());
-                }
-                tmp.setPrizeIcon(activityAward.getIcon());
-                tmp.setPrizeName(activityAward.getName());
-                priceList.add(tmp);
-            }
-            //设置为已完成
-            signMsgVo.setIfComplete(true);
-            signMsgVo.setPriceList(priceList);
-        } else {
-            signMsgVo.setIfComplete(false);
-        }
-        return signMsgVo;
+    public ActivityUserTaskRecordServiceImpl() {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setLocation(new ClassPathResource("lua/award_stock.lua"));
+        script.setResultType(Long.class);
+        this.awardStockScript = script;
     }
-    /**
-     * 获取活动基本信息
-     *
-     * @param signMsgVo
-     * @param userId
-     * @param activityId
-     */
-    public void getUserActivityMsg(SignMsgVo signMsgVo, long userId, long activityId) {
-        String key = RedisKey.ACTIVITY_USER_SIGN_NUM.getKey(userId + ":" + activityId);
-        Integer continuousNums = redisTemplate.opsForValue().get(key);
-        //查询活动信息
-        Activity activity = activityMapper.selectById(activityId);
-        Date startTime = activity.getStartTime();
-        Date endTime = activity.getEndTime();
-        List<ActivityUserTaskRecord> byActivityIdAndTimeAndUserId = activityUserTaskRecordMapper.getByActivityIdAndTimeAndUserId(startTime, endTime, activityId, userId);
-        signMsgVo.setContinuousNums(continuousNums == null ? 0 : continuousNums);
-        signMsgVo.setSignNums(byActivityIdAndTimeAndUserId == null ? 0 : byActivityIdAndTimeAndUserId.size());
-        List<TaskDataVo> taskList = new ArrayList<>();
-        if (byActivityIdAndTimeAndUserId != null && byActivityIdAndTimeAndUserId.size() > 0 && byActivityIdAndTimeAndUserId.get(0) != null) {
-            for (ActivityUserTaskRecord activityUserTaskRecord : byActivityIdAndTimeAndUserId) {
-                TaskDataVo tmp = new TaskDataVo();
-                tmp.setTaskId(activityUserTaskRecord.getTaskItemId());
-                tmp.setSignTime(activityUserTaskRecord.getCreateTime());
-                tmp.setTaskStatus(0);
-                ActivityTaskItem activityTaskItem = activityTaskItemMapper.selectById(activityUserTaskRecord.getTaskItemId());
-                tmp.setTaskName(activityTaskItem.getName());
-                tmp.setIcon(activityTaskItem.getIcon());
-                tmp.setMoodStatus(activityUserTaskRecord.getMoodStatus());
-                tmp.setResources(activityUserTaskRecord.getResources());
-                tmp.setContent(activityUserTaskRecord.getContent());
-                tmp.setAiComment(activityUserTaskRecord.getAiComment());
-                taskList.add(tmp);
-            }
-        }
-        signMsgVo.setPlanBanner(activity.getPlanBanner());
-        signMsgVo.setTaskList(taskList);
-    }
-
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Boolean signIn(Long activityId, Long taskId, Long userId, Integer moodStatus, String resource, String content, String aiComment, Integer isOpen) {
+    public SignMsgVo getSignMsg(Long activityId, long userId) {
+        SignMsgVo signMsgVo = new SignMsgVo();
         Activity activity = activityMapper.selectById(activityId);
-        //判断活动是否结束
-        //判断活动是否结束
-        if (System.currentTimeMillis() > activity.getEndTime().getTime()) {
+        if (activity == null) {
+            return signMsgVo;
+        }
+        signMsgVo.setActivityId(activityId);
+        signMsgVo.setActivityName(activity.getName());
+        signMsgVo.setCoverImg(activity.getCoverImg());
+        signMsgVo.setStartTime(activity.getStartTime());
+        signMsgVo.setEndTime(activity.getEndTime());
+        signMsgVo.setCreateType(activity.getCreateType());
+        signMsgVo.setPlanBanner(activity.getBannerImg());
+        signMsgVo.setTotalNum(activityTaskRelationMapper.countNumByActivityId(activityId));
+        signMsgVo.setStatus(new Date().after(activity.getEndTime()) ? 1 : 2);
+
+        List<ActivityUserTaskRecord> recordList = activityUserTaskRecordMapper.getByActivityIdAndTimeAndUserId(
+                activity.getStartTime(), activity.getEndTime(), activityId, userId);
+        signMsgVo.setSignNums(recordList.size());
+        signMsgVo.setTaskList(buildTaskDataList(recordList));
+
+        String signKey = USER_SIGN_KEY + userId + ":" + activityId;
+        String continuous = stringRedisTemplate.opsForValue().get(signKey);
+        signMsgVo.setContinuousNums(continuous == null ? 0 : Integer.parseInt(continuous));
+
+        ActivityUserJoin join = activityUserJoinMapper.getByUserIdAndActivityId(activityId, userId);
+        boolean complete = join != null && Integer.valueOf(1).equals(join.getStatus());
+        signMsgVo.setIfComplete(complete);
+        if (complete) {
+            List<Long> awardIds = activityUserAwardRecordMapper.getAllAwardByUserId(userId, activityId);
+            List<ActivityUserPriceVo> prices = new ArrayList<>();
+            for (Long awardId : awardIds) {
+                ActivityAward award = activityAwardMapper.selectById(awardId);
+                if (award == null) {
+                    continue;
+                }
+                ActivityUserPriceVo vo = new ActivityUserPriceVo();
+                vo.setPrizeName(award.getName());
+                vo.setPrizeIcon(award.getIcon());
+                prices.add(vo);
+            }
+            signMsgVo.setPriceList(prices);
+        }
+        return signMsgVo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Boolean signIn(Long activityId, Long taskId, Long userId, Integer moodStatus, String resource, String content, String aiComment, Integer isOpen, String requestKey) {
+        if (activityId == null || taskId == null || userId == null) {
             return false;
         }
-        log.info("当前用户签到：用户id：{}，活动id：{}", userId, activityId);
-        // 检查今天是否打卡
-        ActivityUserTaskRecord lastActivityTask = activityUserTaskRecordMapper.getLatelyByActivityAndUserId(activityId, userId);
-        Long taskItemId = lastActivityTask == null ? 0L : lastActivityTask.getTaskItemId();
-        if (taskItemId.equals(taskId)) {
+        if (!StringUtils.hasText(requestKey)) {
+            throw new IllegalArgumentException("请求唯一键不能为空");
+        }
+        String idempotentKey = buildSignIdempotentKey(userId, activityId, requestKey);
+        Boolean lock = stringRedisTemplate.opsForValue().setIfAbsent(idempotentKey, "1");
+        if (Boolean.FALSE.equals(lock)) {
+            throw new IllegalArgumentException("重复提交");
+        }
+        if (Boolean.TRUE.equals(lock)) {
+            stringRedisTemplate.expire(idempotentKey, SIGN_IDEMPOTENT_EXPIRE_SECONDS, TimeUnit.SECONDS);
+        }
+
+        Activity activity = activityMapper.selectById(activityId);
+        if (activity == null || activity.getEndTime() == null || System.currentTimeMillis() > activity.getEndTime().getTime()) {
+            return false;
+        }
+
+        ActivityUserJoin join = activityUserJoinMapper.getByUserIdAndActivityId(activityId, userId);
+        if (join == null) {
+            return false;
+        }
+
+        ActivityUserTaskRecord latest = activityUserTaskRecordMapper.getLatelyByActivityAndUserId(activityId, userId);
+        if (latest != null && latest.getTaskItemId() != null && latest.getTaskItemId().equals(taskId)
+                && isSameDay(latest.getCreateTime(), new Date())) {
             return true;
         }
-        //保存数据
-        ActivityUserTaskRecord taskRecod = getTaskRecod(userId, activityId, taskId, moodStatus, resource, content, aiComment, isOpen);
-        activityUserTaskRecordMapper.insert(taskRecod);
-        String key = RedisKey.ACTIVITY_USER_SIGN_NUM.getKey(userId + ":" + activityId);
-        redisTemplate.opsForValue().increment(key);
-        Date now = new Date();
-        long between = DateUtil.between(now, DateUtil.endOfDay(now).offset(DateField.DAY_OF_YEAR, 1), DateUnit.SECOND);
-        redisTemplate.expire(key, between, TimeUnit.SECONDS);
 
-        Date startTime = activity.getStartTime();
-        Date endTime = activity.getEndTime();
-        //用户已打卡天数
-        Integer byActivityUserRecordNum = activityUserTaskRecordMapper.getByActivityUserRecordNum(startTime, endTime, activityId, userId);
-        doAwarding(activity, byActivityUserRecordNum, userId);
+        ActivityUserTaskRecord taskRecord = buildTaskRecord(userId, activityId, taskId, moodStatus, resource, content, aiComment, isOpen, requestKey);
+        try {
+            activityUserTaskRecordMapper.insert(taskRecord);
+        } catch (DuplicateKeyException e) {
+            throw new IllegalArgumentException("重复提交");
+        }
+        refreshContinuousDays(userId, activityId, latest);
 
-        // 判断是否已全部完成活动，并且填充奖品信息
-        String activityVal = activity.getVal();
-        JSONObject activityJsonObject = JSON.parseObject(activityVal, JSONObject.class);
-        Integer num = activityJsonObject.getInteger("num");
-        if (Objects.equals(byActivityUserRecordNum, num)) {
-            log.info("当前用户已完成任务，修改用户参与活动状态为已完成！");
-            //更新用户活动状态
-            ActivityUserJoin byUserIdAndActivityId = activityUserJoinMapper.getByUserIdAndActivityId(activityId, userId);
-            byUserIdAndActivityId.setStatus(1);
-            activityUserJoinMapper.updateById(byUserIdAndActivityId);
+        Integer signedCount = activityUserTaskRecordMapper.getByActivityUserRecordNum(activity.getStartTime(), activity.getEndTime(), activityId, userId);
+        doAwarding(activity, signedCount, userId);
+
+        Integer requiredNum = parseRequiredSignNum(activity.getVal());
+        if (requiredNum != null && signedCount >= requiredNum) {
+            join.setStatus(1);
+            join.setUpdateUserId(userId);
+            join.setUpdateTime(new Date());
+            activityUserJoinMapper.updateById(join);
         }
-        triggerSceneSceneActivityServiceImpl.business(userId, activityId);
-        //删除缓存
-        redisTemplate.delete("activity_adjust_task_" + userId + ":" + activityId);
-        //判断是否是表情打卡，不需要发送动态
-        if (activity.getTaskType() != null && activity.getTaskType() != 1) {
-            PlazaAddDynamicVo plazaAddDynamicVo = new PlazaAddDynamicVo();
-            plazaAddDynamicVo.setType(PlazaDynamicTypeEnum.ACTIVITY.getCode());
-            plazaAddDynamicVo.setIsOpen(isOpen);
-            plazaAddDynamicVo.setTargetId(taskRecod.getId());
-            plazaService.addDynamic(plazaAddDynamicVo);
-        }
+        stringRedisTemplate.delete("activity_adjust_task_" + userId + ":" + activityId);
         return true;
     }
 
-    /**
-     * 颁发奖品
-     *
-     * @param byActivityUserRecordNum
-     * @param userId
-     */
-    //表示创建⼀个新的事务，如果当前存在事务，则把当前事务挂起。
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-    public void doAwarding(Activity activity, Integer byActivityUserRecordNum, Long userId) {
-        Long activityId = activity.getId();
-        //用户获奖,插入奖品列表
-        List<ActivityAwardRule> awardByActivityId = activityAwardRuleMapper.getAwardByActivityId(activityId);
-        for (ActivityAwardRule activityAwardRule : awardByActivityId) {
-            Long activityAwardId = activityAwardRule.getActivityAwardId();
-            ActivityAward activityAward = activityAwardMapper.selectById(activityAwardId);
-            //更新奖品表  奖品使用数+1
-            JSONObject jsonObject = JSON.parseObject(activityAwardRule.getConfigVal(), JSONObject.class);
-            //获取该奖品所需打卡天数
-            Integer days = jsonObject.getInteger("days");
-            //打卡没有达标或者奖品已被禁用或者该规则已被禁用
-            if (!Objects.equals(byActivityUserRecordNum, days) || activityAwardRule.getStatus() == 0 || activityAward.getStatus() == 0) {
-                log.info("当前奖品没有启用，奖品id：{}", activityAwardId);
+    public void doAwarding(Activity activity, Integer signedCount, Long userId) {
+        List<ActivityAwardRule> rules = activityAwardRuleMapper.getAwardByActivityId(activity.getId());
+        for (ActivityAwardRule rule : rules) {
+            if (!Integer.valueOf(1).equals(rule.getStatus())) {
                 continue;
             }
-            // 获取奖品锁
-            String cacheKey = RedisKey.ACTIVITY_AWARD_LOCK.getKey(activityAwardId);
-            Boolean aBoolean = redisTemplate.opsForValue().setIfAbsent(cacheKey, 1, 10, TimeUnit.SECONDS);
-            Boolean isSend = (activityAward.getLimitType() != null && activityAward.getLimitType() == 0) ||
-                    (activityAward.getLimitType() != null && activityAward.getLimitType() == 1 && activityAward.getUseNum() + 1 <= activityAward.getLimitNum());
-            //发放奖品或勋章
-            if (aBoolean != null && aBoolean && isSend) {
-                log.info("当前用户已中奖，插入用户奖品信息：奖品id：{}", activityAwardId);
-                Integer awardUsedNum = activityAward.getUseNum() + 1;
-                activityAward.setUseNum(awardUsedNum);
-                activityAwardMapper.updateById(activityAward);
-                //插入获奖记录表
-                ActivityUserAwardRecord awardRecord = getAwardRecord(activityAward, userId, activityAwardId, activityId, awardUsedNum);
-                activityUserAwardRecordMapper.insert(awardRecord);
-
-                //插入缓存
-                iActivityService.setRedisCacheUserMedal(awardRecord);
-                //更新用户奖品表（获得奖品数量累加）
-                ActivityUserAward byUserId = activityUserAwardMapper.getByUserId(userId, activityAwardId);
-                if (byUserId == null) {
-                    activityUserAwardMapper.insert(getAward(userId, activityAward));
-                } else {
-                    byUserId.setNum(byUserId.getNum() + 1);
-                    activityUserAwardMapper.updateById(byUserId);
-                }
-                //判断是否是勋章
-                if (activityAward.getType().equals(1)) {
-                    Integer numAwardIdByUserId = activityUserAwardRecordMapper.getNumAwardIdByUserId(1, userId);
-                    iUserLevelService.setMedalNum(userId, numAwardIdByUserId);
-                }
+            Integer days = parseDays(rule.getConfigVal());
+            if (days == null || !days.equals(signedCount)) {
+                continue;
             }
-            if (aBoolean != null && aBoolean) {
-                try {
-                    //判断奖品是否充足
-                    //发放会员
-                    if (isSend && activityAward.getEquityName().equals("VIP会员")) {
-                        log.info("当前用户中奖VIP会员权益，赠送会员,用户id：{}", userId);
-                        iVipPackageService.sendVip(userId, Long.parseLong(activityAward.getAward()), PayWayEnum.GIVE_AWAY_BY_ACTIVITY);
-                    }
-                } catch (Exception e) {
-                    log.info("更新奖品失败：用户id：{}，活动id：{}", userId, activityId, e);
-                } finally {
-                    redisTemplate.delete(cacheKey);
-                }
+            ActivityAward award = activityAwardMapper.selectById(rule.getActivityAwardId());
+            if (award == null || !Integer.valueOf(1).equals(award.getStatus())) {
+                continue;
+            }
+            if (activityUserAwardRecordMapper.countByUserAndAwardAndActivity(userId, award.getId(), activity.getId()) > 0) {
+                continue;
+            }
+
+            if (award.getLimitType() != null && award.getLimitType() == 1) {
+                grantLimitedAward(activity.getId(), userId, award);
+            } else {
+                grantUnlimitedAward(activity.getId(), userId, award);
             }
         }
     }
 
+    private void grantLimitedAward(Long activityId, Long userId, ActivityAward award) {
+        String key = AWARD_STOCK_KEY + award.getId();
+        initAwardStockKey(key, award);
 
-    /**
-     * 获取任务记录
-     *
-     * @param userId
-     * @param activityId
-     * @param taskId
-     * @param moodStatus
-     * @return
-     */
-    public ActivityUserTaskRecord getTaskRecod(Long userId, Long activityId, Long taskId, Integer moodStatus, String resource, String content, String aiComment, Integer isOpen) {
-        ActivityUserTaskRecord activityUserTaskRecord = new ActivityUserTaskRecord();
-        activityUserTaskRecord.setId(defaultIdentifierGenerator.nextId(activityUserTaskRecord));
-        activityUserTaskRecord.setUserId(userId);
-        activityUserTaskRecord.setActivityId(activityId);
-        activityUserTaskRecord.setTaskItemId(taskId);
-        activityUserTaskRecord.setMoodStatus(moodStatus);
-        activityUserTaskRecord.setCreateUserId(userId);
-        activityUserTaskRecord.setUpdateUserId(userId);
-        activityUserTaskRecord.setCreateTime(new Date());
-        activityUserTaskRecord.setUpdateTime(new Date());
-        activityUserTaskRecord.setIsDelete(0);
-        activityUserTaskRecord.setResources(resource);
-        activityUserTaskRecord.setContent(content);
-        activityUserTaskRecord.setIsOpen(isOpen);
-        //TODO 调用AI专家分析
-        activityUserTaskRecord.setAiComment(aiComment);
-        return activityUserTaskRecord;
+        Long luaResult = stringRedisTemplate.execute(awardStockScript, Collections.singletonList(key), "1");
+        if (luaResult == null || luaResult < 0) {
+            return;
+        }
+
+        int updated = activityAwardMapper.incrUseNumWithLimit(award.getId());
+        if (updated <= 0) {
+            stringRedisTemplate.opsForValue().increment(key, 1L);
+            return;
+        }
+
+        try {
+            writeAwardRecordAndUserAward(activityId, userId, award);
+        } catch (Exception e) {
+            stringRedisTemplate.opsForValue().increment(key, 1L);
+            throw e;
+        }
     }
 
-    /**
-     * 用户任务记录列表
-     *
-     * @param pageValidate   分页参数
-     * @param searchValidate 搜索参数
-     * @return PageResult<ActivityUserTaskRecordListedVo>
-     * @author fei
-     */
+    private void grantUnlimitedAward(Long activityId, Long userId, ActivityAward award) {
+        activityAwardMapper.incrUseNum(award.getId());
+        writeAwardRecordAndUserAward(activityId, userId, award);
+    }
+
+    private void writeAwardRecordAndUserAward(Long activityId, Long userId, ActivityAward award) {
+        Date now = new Date();
+        ActivityUserAwardRecord record = new ActivityUserAwardRecord();
+        record.setId(defaultIdentifierGenerator.nextId(record));
+        record.setUserId(userId);
+        record.setAwardId(award.getId());
+        record.setActivityId(activityId);
+        record.setType(award.getType());
+        record.setAward(award.getAward());
+        record.setCreateUserId(userId);
+        record.setUpdateUserId(userId);
+        record.setCreateTime(now);
+        record.setUpdateTime(now);
+        record.setIsDelete(0);
+        activityUserAwardRecordMapper.insert(record);
+
+        ActivityUserAward userAward = activityUserAwardMapper.getByUserId(userId, award.getId());
+        if (userAward == null) {
+            ActivityUserAward add = new ActivityUserAward();
+            add.setId(defaultIdentifierGenerator.nextId(add));
+            add.setActivityAwardId(award.getId());
+            add.setName(award.getName());
+            add.setIcon(award.getIcon());
+            add.setType(award.getType());
+            add.setNum(1);
+            add.setCreateUserId(userId);
+            add.setUpdateUserId(userId);
+            add.setCreateTime(now);
+            add.setUpdateTime(now);
+            add.setIsDelete(0);
+            activityUserAwardMapper.insert(add);
+        } else {
+            userAward.setNum(userAward.getNum() == null ? 1 : userAward.getNum() + 1);
+            userAward.setUpdateUserId(userId);
+            userAward.setUpdateTime(now);
+            activityUserAwardMapper.updateById(userAward);
+        }
+    }
+
+    private List<TaskDataVo> buildTaskDataList(List<ActivityUserTaskRecord> recordList) {
+        List<TaskDataVo> taskList = new ArrayList<>();
+        for (ActivityUserTaskRecord record : recordList) {
+            TaskDataVo vo = new TaskDataVo();
+            vo.setTaskId(record.getTaskItemId());
+            vo.setSignTime(record.getCreateTime());
+            vo.setTaskStatus(0);
+            ActivityTaskItem item = activityTaskItemMapper.selectById(record.getTaskItemId());
+            if (item != null) {
+                vo.setTaskName(item.getName());
+                vo.setIcon(item.getIcon());
+            }
+            vo.setMoodStatus(record.getMoodStatus());
+            vo.setResources(record.getResources());
+            vo.setContent(record.getContent());
+            vo.setAiComment(record.getAiComment());
+            taskList.add(vo);
+        }
+        return taskList;
+    }
+
+    private ActivityUserTaskRecord buildTaskRecord(Long userId, Long activityId, Long taskId, Integer moodStatus,
+                                                   String resource, String content, String aiComment, Integer isOpen, String requestKey) {
+        ActivityUserTaskRecord record = new ActivityUserTaskRecord();
+        record.setId(defaultIdentifierGenerator.nextId(record));
+        record.setUserId(userId);
+        record.setActivityId(activityId);
+        record.setTaskItemId(taskId);
+        record.setMoodStatus(moodStatus);
+        record.setResources(resource);
+        record.setContent(content);
+        record.setAiComment(aiComment);
+        record.setIsOpen(isOpen);
+        record.setRequestKey(requestKey);
+        record.setCreateUserId(userId);
+        record.setUpdateUserId(userId);
+        record.setCreateTime(new Date());
+        record.setUpdateTime(new Date());
+        record.setIsDelete(0);
+        return record;
+    }
+
+    private String buildSignIdempotentKey(Long userId, Long activityId, String requestKey) {
+        return SIGN_IDEMPOTENT_KEY + userId + ":" + activityId + ":" + requestKey;
+    }
+
+    private void refreshContinuousDays(Long userId, Long activityId, ActivityUserTaskRecord latestRecord) {
+        String key = USER_SIGN_KEY + userId + ":" + activityId;
+        int newValue = 1;
+        if (latestRecord != null && latestRecord.getCreateTime() != null) {
+            LocalDate today = LocalDate.now();
+            LocalDate latestDate = latestRecord.getCreateTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            long days = ChronoUnit.DAYS.between(latestDate, today);
+            if (days == 1) {
+                String oldValue = stringRedisTemplate.opsForValue().get(key);
+                int current = oldValue == null ? 0 : Integer.parseInt(oldValue);
+                newValue = current + 1;
+            }
+        }
+        stringRedisTemplate.opsForValue().set(key, String.valueOf(newValue), 30, TimeUnit.DAYS);
+    }
+
+    private boolean isSameDay(Date first, Date second) {
+        LocalDate d1 = first.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate d2 = second.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        return d1.equals(d2);
+    }
+
+    private Integer parseRequiredSignNum(String val) {
+        try {
+            JSONObject jsonObject = JSON.parseObject(val);
+            return jsonObject == null ? null : jsonObject.getInteger("num");
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Integer parseDays(String configVal) {
+        try {
+            JSONObject jsonObject = JSON.parseObject(configVal);
+            return jsonObject == null ? null : jsonObject.getInteger("days");
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private void initAwardStockKey(String key, ActivityAward award) {
+        Integer limitNum = award.getLimitNum() == null ? 0 : award.getLimitNum();
+        Integer usedNum = award.getUseNum() == null ? 0 : award.getUseNum();
+        int remaining = Math.max(limitNum - usedNum, 0);
+        Boolean absent = stringRedisTemplate.opsForValue().setIfAbsent(key, String.valueOf(remaining));
+        if (Boolean.TRUE.equals(absent)) {
+            stringRedisTemplate.expire(key, 1, TimeUnit.DAYS);
+        }
+    }
+
     @Override
     public PageResult<ActivityUserTaskRecordListedVo> list(PageValidate pageValidate, ActivityUserTaskRecordSearchValidate searchValidate) {
         Page<ActivityUserTaskRecord> page = new Page<>(pageValidate.getPageNo(), pageValidate.getPageSize());
@@ -303,24 +395,11 @@ public class ActivityUserTaskRecordServiceImpl extends ServiceImpl<ActivityUserT
         return PageResult.iPageHandle(list.getTotal(), list.getCurrent(), list.getSize(), list.getRecords());
     }
 
-    /**
-     * 用户任务记录详情
-     *
-     * @param id 主键参数
-     * @return ActivityUserTaskRecord
-     * @author fei
-     */
     @Override
     public ActivityUserTaskRecordListedVo detail(Long id) {
         return activityUserTaskRecordMapper.getDetailById(id);
     }
 
-    /**
-     * 用户任务记录新增
-     *
-     * @param createValidate 参数
-     * @author fei
-     */
     @Override
     public void add(ActivityUserTaskRecordCreateValidate createValidate) {
         ActivityUserTaskRecord model = new ActivityUserTaskRecord();
@@ -330,32 +409,18 @@ public class ActivityUserTaskRecordServiceImpl extends ServiceImpl<ActivityUserT
         activityUserTaskRecordMapper.insert(model);
     }
 
-    /**
-     * 用户任务记录编辑
-     *
-     * @param updateValidate 参数
-     * @author fei
-     */
     @Override
     public void edit(ActivityUserTaskRecordUpdateValidate updateValidate) {
         ActivityUserTaskRecord model = activityUserTaskRecordMapper.selectById(updateValidate.getId());
-        Assert.notNull(model, "数据不存在!");
+        Assert.notNull(model, "数据不存在");
         BeanUtils.copyProperties(updateValidate, model);
         model.setUpdateTime(new Date());
         activityUserTaskRecordMapper.updateById(model);
     }
 
-    /**
-     * 用户任务记录删除
-     *
-     * @param id 主键ID
-     * @author fei
-     */
     @Override
     public void del(Long id) {
         int i = activityUserTaskRecordMapper.deleteById(id);
-        Assert.isTrue(i > 0, "数据不存在!");
+        Assert.isTrue(i > 0, "数据不存在");
     }
-
 }
-

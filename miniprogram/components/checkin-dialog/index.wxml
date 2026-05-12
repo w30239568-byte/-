@@ -1,0 +1,15 @@
+﻿<view wx:if="{{show}}" class="mask">
+  <view class="dialog">
+    <view class="title">坚持了今天的寒假晨跑？</view>
+    <view class="mood-row">
+      <view class="mood {{moodStatus===1?'active':''}}" data-mood="1" bindtap="chooseMood">😊</view>
+      <view class="mood {{moodStatus===2?'active':''}}" data-mood="2" bindtap="chooseMood">😐</view>
+      <view class="mood {{moodStatus===3?'active':''}}" data-mood="3" bindtap="chooseMood">😵</view>
+    </view>
+    <textarea class="textarea" maxlength="1000" placeholder="写点今日打卡内容" bindinput="onInput"></textarea>
+    <view class="btn-row">
+      <button class="btn ghost" bindtap="close">取消</button>
+      <button class="btn" bindtap="submit">确认打卡</button>
+    </view>
+  </view>
+</view>

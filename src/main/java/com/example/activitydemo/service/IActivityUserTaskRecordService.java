@@ -60,7 +60,7 @@ public interface IActivityUserTaskRecordService extends IService<ActivityUserTas
      */
     void del(Long id);
 
-    Boolean signIn(Long activityId, Long taskId, Long userId, Integer moodStatus, String resource, String content, String aiComment, Integer isOpen);
+    Boolean signIn(Long activityId, Long taskId, Long userId, Integer moodStatus, String resource, String content, String aiComment, Integer isOpen, String requestKey);
 
     SignMsgVo getSignMsg(Long activityId, long userId);
 }

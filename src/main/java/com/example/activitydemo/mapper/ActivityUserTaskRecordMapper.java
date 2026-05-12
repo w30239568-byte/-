@@ -11,12 +11,8 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.Date;
+import java.util.List;
 
-/**
- * 用户任务记录Mapper
- *
- * @author fei
- */
 @Mapper
 public interface ActivityUserTaskRecordMapper extends BaseMapper<ActivityUserTaskRecord> {
 
@@ -27,4 +23,17 @@ public interface ActivityUserTaskRecordMapper extends BaseMapper<ActivityUserTas
     @Select("select count(id) from la_activity_user_task_record where activity_id =#{activityId} and user_id = #{userId} and is_delete = 0 and create_time between #{startTime} and #{endTime}")
     int countUserRecordByDate(@Param("activityId") Long activityId, @Param("userId") Long userId, @Param("startTime") Date startTime, @Param("endTime") Date endTime);
 
+    @Select("select * from la_activity_user_task_record where activity_id = #{activityId} and user_id = #{userId} and is_delete = 0 and create_time between #{startTime} and #{endTime} order by create_time asc")
+    List<ActivityUserTaskRecord> getByActivityIdAndTimeAndUserId(@Param("startTime") Date startTime, @Param("endTime") Date endTime,
+                                                                 @Param("activityId") Long activityId, @Param("userId") Long userId);
+
+    @Select("select * from la_activity_user_task_record where activity_id = #{activityId} and user_id = #{userId} and is_delete = 0 order by create_time desc limit 1")
+    ActivityUserTaskRecord getLatelyByActivityAndUserId(@Param("activityId") Long activityId, @Param("userId") Long userId);
+
+    @Select("select count(id) from la_activity_user_task_record where activity_id = #{activityId} and user_id = #{userId} and is_delete = 0 and create_time between #{startTime} and #{endTime}")
+    Integer getByActivityUserRecordNum(@Param("startTime") Date startTime, @Param("endTime") Date endTime,
+                                       @Param("activityId") Long activityId, @Param("userId") Long userId);
+
+    @Select("select * from la_activity_user_task_record where activity_id = #{activityId} and user_id = #{userId} and task_item_id = #{taskItemId} and is_delete = 0 limit 1")
+    ActivityUserTaskRecord getTaskRecord(@Param("activityId") Long activityId, @Param("userId") Long userId, @Param("taskItemId") Long taskItemId);
 }

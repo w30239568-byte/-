@@ -14,8 +14,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.validation.constraints.Min;
 
 @Slf4j
+@Validated
 @RestController
 @RequestMapping("api/activityUserJoin")
 public class ActivityUserJoinController {
@@ -34,7 +36,7 @@ public class ActivityUserJoinController {
     }
 
     @GetMapping("/detail")
-    public AjaxResult<ActivityUserJoinListedVo> detail(@Validated @RequestParam("id") Long id) {
+    public AjaxResult<ActivityUserJoinListedVo> detail(@RequestParam("id") @Min(value = 1, message = "id必须大于0") Long id) {
         ActivityUserJoinListedVo detail = iActivityUserJoinService.detail(id);
         return AjaxResult.success(detail);
     }

@@ -1,0 +1,28 @@
+﻿.page { padding: 28rpx; }
+.hero {
+  background: linear-gradient(180deg, #2f8dff 0%, #4b9dff 100%);
+  border-radius: 26rpx;
+  padding: 24rpx;
+  color: #fff;
+}
+.hero-title { text-align: center; font-size: 30rpx; font-weight: 700; }
+.steps { display: flex; justify-content: space-between; margin-top: 22rpx; }
+.step { width: 30%; background: rgba(255,255,255,0.18); border-radius: 14rpx; text-align: center; padding: 14rpx 8rpx; font-size: 22rpx; }
+.card {
+  margin-top: 20rpx;
+  background: #fff;
+  border-radius: 22rpx;
+  padding: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(45,93,176,0.08);
+}
+.name { font-size: 32rpx; color: #22356a; font-weight: 700; }
+.remark { margin-top: 14rpx; color: #5f739f; font-size: 24rpx; }
+.meta { margin-top: 12rpx; color: #8092bb; font-size: 22rpx; }
+.reward .badges { display: flex; gap: 20rpx; margin-top: 16rpx; }
+.badge { width: 96rpx; height: 96rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 44rpx; font-weight: 700; }
+.badge.v { background: linear-gradient(180deg, #ffce66, #ff9a2f); }
+.badge.h { background: linear-gradient(180deg, #7f9cff, #6f6fff); }
+.tip { margin-top: 10rpx; color: #7f8eb0; font-size: 22rpx; }
+.btn { margin-top: 28rpx; border-radius: 999rpx; font-size: 30rpx; }
+.btn.signup { background: linear-gradient(90deg, #00c47d, #15d48b); color: #fff; }
+.btn.calendar { background: linear-gradient(90deg, #2f8dff, #6c7cff); color: #fff; }
