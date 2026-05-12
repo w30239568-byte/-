@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.activitydemo.mapper.ActivityTaskRelationMapper">
+
+    <!-- 列表查询result -->
+    <select id="list" resultType="com.example.activitydemo.vo.ActivityTaskRelationListedVo">
+        select
+        latr.id,
+        latr.activity_id,
+        latr.task_item_id,
+        latr.create_user_id,
+        latr.update_user_id,
+        latr.create_time,
+        latr.update_time
+        from la_activity_task_relation latr
+        <where>
+            and latr.is_delete = 0
+            <if test="param.activityId != null">
+                and latr.activity_id = #{param.activityId}
+            </if>
+            <if test="param.taskItemId != null">
+                and latr.task_item_id = #{param.taskItemId}
+            </if>
+            <if test="param.createUserId != null">
+                and latr.create_user_id = #{param.createUserId}
+            </if>
+            <if test="param.updateUserId != null">
+                and latr.update_user_id = #{param.updateUserId}
+            </if>
+        </where>
+        order by latr.id desc
+    </select>
+
+    <select id="countNumByActivityId" resultType="Integer">
+        select count(id)
+        from la_activity_task_relation relation
+        where relation.is_delete = 0
+          and relation.activity_id = #{activityId}
+    </select>
+
+    <select id="getNotCompleteTask" resultType="com.mdd.admin.entity.activity.ActivityTaskRelation">
+        select relation.task_item_id, relation.sorts
+        from la_activity_task_relation relation
+                 left join la_activity_user_task_record taskRecord
+                           on taskRecord.activity_id = relation.activity_id and
+                              relation.task_item_id = taskRecord.task_item_id and taskRecord.is_delete = 0 and taskRecord.user_id = #{userId}
+        where relation.is_delete = 0
+          and taskRecord.id is null
+          and relation.activity_id = #{activityId}
+        order by relation.sorts
+        limit 1
+    </select>
+</mapper>

@@ -1,0 +1,22 @@
+﻿spring:
+   datasource:
+      username: root
+      password: 123456
+      url: jdbc:mysql://localhost:3306/activity?characterEncoding=UTF-8
+      driver-class-name: com.mysql.jdbc.Driver
+mybatis-plus:
+   mapper-locations: classpath:mybatis/*.xml
+   type-aliases-package: com.example.activitydemo.domain
+   configuration:
+      map-underscore-to-camel-case: true
+      auto-mapping-behavior: full
+      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+   global-config:
+      # 閫昏緫鍒犻櫎閰嶇疆
+      db-config:
+         # 鍒犻櫎鍓?
+         logic-not-delete-value: 1
+         # 鍒犻櫎鍚?
+         logic-delete-value: 0
+server:
+   port: 9007

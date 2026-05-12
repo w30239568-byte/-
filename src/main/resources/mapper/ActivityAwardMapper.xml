@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.activitydemo.mapper.ActivityAwardMapper">
+
+    <!-- 列表查询result -->
+    <select id="list" resultType="com.example.activitydemo.vo.ActivityAwardListedVo">
+        select
+        laa.id,
+        laa.equity_name,
+        laa.units,
+        laa.name,
+        laa.icon,
+        laa.type,
+        laa.detail_type,
+        laa.award,
+        laa.use_num,
+        laa.limit_type,
+        laa.limit_num,
+        laa.status,
+        laa.create_user_id,
+        laa.update_user_id,
+        laa.create_time,
+        laa.update_time
+        from la_activity_award laa
+        <where>
+            and laa.is_delete = 0
+            <if test="param.name != null and param.name  !='' ">
+                and laa.name like concat('%',#{param.name},'%')
+            </if>
+            <if test="param.equityName != null and param.equityName  !='' ">
+                and laa.equity_name like concat('%',#{param.equityName},'%')
+            </if>
+            <if test="param.type != null">
+                and laa.type = #{param.type}
+            </if>
+            <if test="param.award != null and param.award  !='' ">
+                and laa.award like concat('%',#{param.award},'%')
+            </if>
+            <if test="param.useNum != null">
+                and laa.use_num = #{param.useNum}
+            </if>
+            <if test="param.limitType != null">
+                and laa.limit_type = #{param.limitType}
+            </if>
+            <if test="param.limitNum != null">
+                and laa.limit_num = #{param.limitNum}
+            </if>
+            <if test="param.status != null">
+                and laa.status = #{param.status}
+            </if>
+            <if test="param.createUserId != null">
+                and laa.create_user_id = #{param.createUserId}
+            </if>
+            <if test="param.updateUserId != null">
+                and laa.update_user_id = #{param.updateUserId}
+            </if>
+            <if test="param.detailType != null">
+                and laa.detail_type = #{param.detailType}
+            </if>
+        </where>
+        order by laa.id desc
+    </select>
+
+</mapper>

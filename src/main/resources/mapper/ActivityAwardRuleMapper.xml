@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.activitydemo.mapper.ActivityAwardRuleMapper">
+
+    <!-- 列表查询result -->
+    <select id="list" resultType="com.example.activitydemo.vo.ActivityAwardRuleListedVo">
+        select
+        laar.id,
+        laar.name,
+        laar.activity_award_id,
+        laar.activity_id,
+        laar.type,
+        laar.config_val,
+        laar.status,
+        laar.create_user_id,
+        laar.update_user_id,
+        laar.create_time,
+        laar.update_time,
+        laar.award_type,
+        latity.name as activityName,
+        awards.name as awardName,
+        awards.equity_name as equityName,
+        awards.detail_type as detailType
+        from la_activity_award_rule laar
+           join la_activity_award awards on laar.activity_award_id = awards.id
+           left join  la_activity latity on laar.activity_id = latity.id
+        <where>
+            and laar.is_delete = 0
+            <if test="param.name != null and param.name  !='' ">
+                and laar.name like concat('%',#{param.name},'%')
+            </if>
+            <if test="param.activityAwardId != null">
+                and laar.activity_award_id = #{param.activityAwardId}
+            </if>
+            <if test="param.activityId != null">
+                and laar.activity_id = #{param.activityId}
+            </if>
+            <if test="param.type != null">
+                and laar.type = #{param.type}
+            </if>
+            <if test="param.awardType != null">
+                and laar.award_type = #{param.awardType}
+            </if>
+            <if test="param.configVal != null and param.configVal  !='' ">
+                and laar.config_val like concat('%',#{param.configVal},'%')
+            </if>
+            <if test="param.status != null">
+                and laar.status = #{param.status}
+            </if>
+            <if test="param.createUserId != null">
+                and laar.create_user_id = #{param.createUserId}
+            </if>
+            <if test="param.updateUserId != null">
+                and laar.update_user_id = #{param.updateUserId}
+            </if>
+        </where>
+        order by laar.id desc
+    </select>
+
+</mapper>

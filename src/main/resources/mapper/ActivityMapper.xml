@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.activitydemo.mapper.ActivityMapper">
+
+    <!-- 列表查询result -->
+    <select id="list" resultType="com.example.activitydemo.vo.ActivityListedVo">
+        select
+        la.id,
+        la.is_hot,
+        la.name,
+        la.remark,
+        la.banner_img,
+        la.limit_type,
+        la.limit_num,
+        la.join_num,
+        la.type,
+        la.task_type,
+        la.val,
+        la.color_msg,
+        la.start_time,
+        la.end_time,
+        la.cover_img,
+        la.introduce_img,
+        la.status,
+        la.create_user_id,
+        la.update_user_id,
+        la.create_time,
+        la.update_time,
+        la.create_type
+        from la_activity la
+        <where>
+            and la.is_delete = 0
+            <if test="param.name != null and param.name  !='' ">
+                and la.name like concat('%',#{param.name},'%')
+            </if>
+            <if test="param.status != null">
+                <if test="param.status == 0">
+                    and la.start_time &gt; #{param.nowDate}
+                </if>
+                <if test="param.status == 1">
+                    and la.start_time &lt; #{param.nowDate} and la.end_time &gt; #{param.nowDate}
+                </if>
+                <if test="param.status == 2">
+                    and la.end_time &lt; #{param.nowDate}
+                </if>
+            </if>
+            <if test="param.content != null and param.content  !='' ">
+                and la.content like concat('%',#{param.content},'%')
+            </if>
+            <if test="param.remark != null and param.remark  !='' ">
+                and la.remark like concat('%',#{param.remark},'%')
+            </if>
+            <if test="param.limitType != null">
+                and la.limit_type = #{param.limitType}
+            </if>
+            <if test="param.limitNum != null">
+                and la.limit_num = #{param.limitNum}
+            </if>
+            <if test="param.joinNum != null">
+                and la.join_num = #{param.joinNum}
+            </if>
+            <if test="param.type != null">
+                and la.type = #{param.type}
+            </if>
+            <if test="param.val != null and param.val  !='' ">
+                and la.val like concat('%',#{param.val},'%')
+            </if>
+            <if test="param.startTime != null">
+                and la.start_time = #{param.startTime}
+            </if>
+            <if test="param.endTime != null">
+                and la.end_time = #{param.endTime}
+            </if>
+            <if test="param.coverImg != null and param.coverImg  !='' ">
+                and la.cover_img like concat('%',#{param.coverImg},'%')
+            </if>
+            <if test="param.introduceImg != null and param.introduceImg  !='' ">
+                and la.introduce_img like concat('%',#{param.introduceImg},'%')
+            </if>
+            <if test="param.createUserId != null">
+                and la.create_user_id = #{param.createUserId}
+            </if>
+            <if test="param.updateUserId != null">
+                and la.update_user_id = #{param.updateUserId}
+            </if>
+            <if test="param.createType != null">
+                and la.create_type = #{param.createType}
+            </if>
+        </where>
+        order by la.id desc
+    </select>
+
+</mapper>

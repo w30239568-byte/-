@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.activitydemo.mapper.ActivityTaskItemMapper">
+
+    <!-- 列表查询result -->
+    <select id="list" resultType="com.example.activitydemo.vo.ActivityTaskItemListedVo">
+        select
+        lati.id,
+        lati.name,
+        lati.icon,
+        lati.type,
+        lati.create_user_id,
+        lati.update_user_id,
+        lati.create_time,
+        lati.update_time
+        from la_activity_task_item lati
+        <where>
+            and lati.is_delete = 0
+            <if test="param.name != null and param.name  !='' ">
+                and lati.name like concat('%',#{param.name},'%')
+            </if>
+            <if test="param.icon != null and param.icon  !='' ">
+                and lati.icon like concat('%',#{param.icon},'%')
+            </if>
+            <if test="param.type != null">
+                and lati.type = #{param.type}
+            </if>
+            <if test="param.createUserId != null">
+                and lati.create_user_id = #{param.createUserId}
+            </if>
+            <if test="param.updateUserId != null">
+                and lati.update_user_id = #{param.updateUserId}
+            </if>
+        </where>
+        order by lati.id desc
+    </select>
+
+</mapper>
